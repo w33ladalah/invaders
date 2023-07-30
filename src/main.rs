@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut stdout = io::stdout();
     terminal::enable_raw_mode()?;
     stdout.execute(EnterAlternateScreen)?;
-    stdout.execute(Hide)?;
+    stdout.execute(Hide).unwrap();
 
     // Main loop
     'mainloop: loop {
