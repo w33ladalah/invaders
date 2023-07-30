@@ -1,26 +1,18 @@
 use std::error::Error;
 use std::{io, thread};
 use std::sync::mpsc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use crossterm::{event, ExecutableCommand, terminal};
 use crossterm::cursor::{Hide, Show};
 use crossterm::event::{Event, KeyCode};
 use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
-use rusty_audio::Audio;
 use invaders::{frame, render};
 use invaders::frame::{Drawable, new_frame};
 use invaders::player::Player;
+use invaders::sound::init_sounds;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    // Setup audio
-    let mut audio = Audio::new();
-    audio.add("explode", "./sounds/explode.wav");
-    audio.add("lose", "./sounds/lose.wav");
-    audio.add("move", "./sounds/move.wav");
-    audio.add("pew", "./sounds/pew.wav");
-    audio.add("startup", "./sounds/startup.wav");
-    audio.add("win", "./sounds/win.wav");
-    audio.play("startup");
+    let mut audio = init_sounds();
 
     // Create a child thread for rendering.
     // It's unnecessary but will be useful in the real world apps for a better performance.
@@ -47,12 +39,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut stdout = io::stdout();
     terminal::enable_raw_mode()?;
     stdout.execute(EnterAlternateScreen)?;
-    stdout.execute(Hide).unwrap();
+    stdout.execute(Hide)?;
 
     let mut player = Player::new();
+    let mut instant = Instant::now();
 
     // Main loop
     'mainloop: loop {
+        let d = instant.elapsed();
+        instant = Instant::now();
         let mut current_frame = new_frame();
 
         while event::poll(Duration::default())? {
@@ -60,14 +55,21 @@ fn main() -> Result<(), Box<dyn Error>> {
                 match key_event.code {
                     KeyCode::Left => player.go_to_left(),
                     KeyCode::Right => player.go_to_right(),
+                    KeyCode::Char(' ') | KeyCode::Enter => {
+                        if player.shoot() {
+                            audio.play("pew");
+                        }
+                    }
                     KeyCode::Esc | KeyCode::Char('q') => {
                         audio.play("lose");
                         break 'mainloop;
-                    },
+                    }
                     _ => {}
                 }
             }
         }
+
+        player.update(d);
 
         player.draw(&mut current_frame);
 
