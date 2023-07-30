@@ -1,5 +1,7 @@
 use crate::{NUM_COLS, NUM_ROWS};
 
+// Use 'static lifetime because we want this Frame variable always available
+// in the entire duration of the program's execution.
 pub type Frame = Vec<Vec<&'static str>>;
 
 pub fn new_frame() -> Frame {
