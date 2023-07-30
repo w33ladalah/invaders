@@ -42,7 +42,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     });
 
-
     // Setup screen
     let mut stdout = io::stdout();
     terminal::enable_raw_mode()?;
