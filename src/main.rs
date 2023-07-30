@@ -8,7 +8,8 @@ use crossterm::event::{Event, KeyCode};
 use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
 use rusty_audio::Audio;
 use invaders::{frame, render};
-use invaders::frame::new_frame;
+use invaders::frame::{Drawable, new_frame};
+use invaders::player::Player;
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Setup audio
@@ -48,21 +49,27 @@ fn main() -> Result<(), Box<dyn Error>> {
     stdout.execute(EnterAlternateScreen)?;
     stdout.execute(Hide).unwrap();
 
+    let mut player = Player::new();
+
     // Main loop
     'mainloop: loop {
-        let current_frame = new_frame();
+        let mut current_frame = new_frame();
 
         while event::poll(Duration::default())? {
             if let Event::Key(key_event) = event::read()? {
                 match key_event.code {
+                    KeyCode::Left => player.go_to_left(),
+                    KeyCode::Right => player.go_to_right(),
                     KeyCode::Esc | KeyCode::Char('q') => {
                         audio.play("lose");
                         break 'mainloop;
-                    }
+                    },
                     _ => {}
                 }
             }
         }
+
+        player.draw(&mut current_frame);
 
         // Don't do anything if an error occurred
         let _ = render_tx.send(current_frame);
