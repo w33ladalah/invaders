@@ -8,4 +8,11 @@ pub struct Enemy {
 pub struct Enemies {
     pub army: Vec<Enemy>,
     move_timer: Timer,
+    direction: i32,
+}
+
+impl Enemies {
+    pub fn new() -> Self {
+        let mut enemy = Vec::new();
+    }
 }
