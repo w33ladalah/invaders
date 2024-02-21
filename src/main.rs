@@ -25,7 +25,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         loop {
             let current_frame = match render_rx.recv() {
-                Ok(x) => x,
+                Ok(x ) => x,
                 Err(_) => break,
             };
 
