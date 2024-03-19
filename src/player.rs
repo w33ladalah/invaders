@@ -18,14 +18,20 @@ impl Player {
             shots: Vec::new(),
         }
     }
-    pub fn go_to_left(&mut self) {
+    pub fn go_to_left(&mut self) -> bool {
         if self.x > 0 {
             self.x -= 1;
+            true
+        } else {
+            false
         }
     }
-    pub fn go_to_right(&mut self) {
+    pub fn go_to_right(&mut self) -> bool {
         if self.x < NUM_COLS - 1 {
             self.x += 1;
+            true
+        } else {
+            false
         }
     }
     pub fn shoot(&mut self) -> bool {
