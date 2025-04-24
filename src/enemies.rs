@@ -31,10 +31,30 @@ impl Enemies {
     pub fn update(&mut self, d: std::time::Duration) {
         self.move_timer.update(d);
         if self.move_timer.ready {
-            for enemy in self.army.iter_mut() {
+            let mut change_direction = false;
+            // Check if any enemy would go out of bounds
+            for enemy in self.army.iter() {
                 if enemy.alive {
-                    let new_x = (enemy.x as i32 + self.direction) as usize;
-                    enemy.x = new_x;
+                    let next_x = enemy.x as i32 + self.direction;
+                    if next_x < 0 || next_x >= crate::NUM_COLS as i32 {
+                        change_direction = true;
+                        break;
+                    }
+                }
+            }
+            if change_direction {
+                self.direction *= -1;
+                // Move enemies down one row
+                for enemy in self.army.iter_mut() {
+                    if enemy.alive {
+                        enemy.y += 1;
+                    }
+                }
+            } else {
+                for enemy in self.army.iter_mut() {
+                    if enemy.alive {
+                        enemy.x = (enemy.x as i32 + self.direction) as usize;
+                    }
                 }
             }
             self.move_timer.reset();
@@ -44,7 +64,9 @@ impl Enemies {
     pub fn draw(&self, frame: &mut crate::frame::Frame) {
         for enemy in self.army.iter() {
             if enemy.alive {
-                frame[enemy.x][enemy.y] = "V";
+                if enemy.x < crate::NUM_COLS && enemy.y < crate::NUM_ROWS {
+                    frame[enemy.x][enemy.y] = "V";
+                }
             }
         }
     }
