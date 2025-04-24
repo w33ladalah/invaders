@@ -19,6 +19,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     stdout.execute(EnterAlternateScreen)?;
     stdout.execute(Hide)?;
 
+    let mut high_score = 0;
     'outer: loop {
         let mut audio = init_sounds();
 
@@ -112,8 +113,25 @@ fn main() -> Result<(), Box<dyn Error>> {
         render_handle.join().unwrap();
         audio.wait();
 
-        println!("\nGame Over!\nEnemies destroyed: {}\nTotal score: {}", destroyed_count, destroyed_count);
-        println!("Press R to restart or Q to quit...");
+        if destroyed_count > high_score {
+            high_score = destroyed_count;
+        }
+
+        // Clear the screen and move cursor to top-left for a clean end screen
+        use crossterm::terminal::{Clear, ClearType};
+        use crossterm::cursor::MoveTo;
+        stdout.execute(Clear(ClearType::All))?;
+        stdout.execute(MoveTo(0, 0))?;
+
+        println!("============================");
+        println!("        Game Over!");
+        println!("----------------------------");
+        println!("Enemies destroyed: {}", destroyed_count);
+        println!("Total score:      {}", destroyed_count);
+        println!("----------------------------");
+        println!("High score:       {}", high_score);
+        println!("============================");
+        println!("Press [R] to restart or [Q] to quit...");
 
         // Wait for user input to restart or quit
         loop {
