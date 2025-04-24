@@ -43,9 +43,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         });
 
-        let mut player = Player::new();
-        let mut enemies = Enemies::new();
-        let mut destroyed_count = 0;
+        let mut player: Player = Player::new();
+        let mut enemies: Enemies = Enemies::new();
+        let mut destroyed_count: usize = 0;
         let mut instant = Instant::now();
 
         // Main loop
