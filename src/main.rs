@@ -44,6 +44,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut player = Player::new();
     let mut enemies = Enemies::new();
+    let mut destroyed_count = 0;
     let mut instant = Instant::now();
 
     // Main loop
@@ -82,7 +83,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         player.update(d);
         enemies.update(d);
         // Check for collisions
-        if enemies.hit_by(&mut player.shots) {
+        let destroyed = enemies.hit_by(&mut player.shots);
+        if destroyed > 0 {
+            destroyed_count += destroyed;
             audio.play("explode");
         }
         // Draw everything
@@ -111,6 +114,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     stdout.execute(Show)?;
     stdout.execute(LeaveAlternateScreen)?;
     terminal::disable_raw_mode()?;
+
+    println!("\nGame Over!\nEnemies destroyed: {}\nTotal score: {}", destroyed_count, destroyed_count);
 
     Ok(())
 }

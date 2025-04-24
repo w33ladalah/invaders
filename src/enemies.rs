@@ -79,20 +79,20 @@ impl Enemies {
         self.army.iter().any(|e| e.alive && e.y >= crate::NUM_ROWS - 1)
     }
 
-    pub fn hit_by(&mut self, player_shots: &mut Vec<crate::laser::Laser>) -> bool {
-        let mut hit = false;
+    pub fn hit_by(&mut self, player_shots: &mut Vec<crate::laser::Laser>) -> usize {
+        let mut destroyed = 0;
         for enemy in self.army.iter_mut() {
             if enemy.alive {
                 for shot in player_shots.iter_mut() {
                     if !shot.exploded && shot.x == enemy.x && shot.y == enemy.y {
                         enemy.alive = false;
                         shot.explode();
-                        hit = true;
+                        destroyed += 1;
                     }
                 }
             }
         }
-        hit
+        destroyed
     }
 }
 
