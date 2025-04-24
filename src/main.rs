@@ -13,42 +13,42 @@ use invaders::sound::init_sounds;
 use invaders::enemies::Enemies;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let mut audio = init_sounds();
-
-    // Create a child thread for rendering.
-    // It's unnecessary but will be useful in the real world apps for a better performance.
-    let (render_tx, render_rx) = mpsc::channel();
-    let render_handle = thread::spawn(move || {
-        let mut last_frame = frame::new_frame();
-        let mut stdout = io::stdout();
-
-        render::render(&mut stdout, &last_frame, &last_frame, true);
-
-        loop {
-            let current_frame = match render_rx.recv() {
-                Ok(x ) => x,
-                Err(_) => break,
-            };
-
-            render::render(&mut stdout, &last_frame, &current_frame, false);
-
-            last_frame = current_frame;
-        }
-    });
-
     // Setup screen
     let mut stdout = io::stdout();
     terminal::enable_raw_mode()?;
     stdout.execute(EnterAlternateScreen)?;
     stdout.execute(Hide)?;
 
-    let mut player = Player::new();
-    let mut enemies = Enemies::new();
-    let mut destroyed_count = 0;
-    let mut instant = Instant::now();
+    'outer: loop {
+        let mut audio = init_sounds();
 
-    // Main loop
-    'mainloop: loop {
+        // Create a child thread for rendering.
+        let (render_tx, render_rx) = mpsc::channel();
+        let render_handle = thread::spawn(move || {
+            let mut last_frame = frame::new_frame();
+            let mut stdout = io::stdout();
+
+            render::render(&mut stdout, &last_frame, &last_frame, true);
+
+            loop {
+                let current_frame = match render_rx.recv() {
+                    Ok(x ) => x,
+                    Err(_) => break,
+                };
+
+                render::render(&mut stdout, &last_frame, &current_frame, false);
+
+                last_frame = current_frame;
+            }
+        });
+
+        let mut player = Player::new();
+        let mut enemies = Enemies::new();
+        let mut destroyed_count = 0;
+        let mut instant = Instant::now();
+
+        // Main loop
+        'mainloop: loop {
         let d = instant.elapsed();
         instant = Instant::now();
         let mut current_frame = new_frame();
@@ -107,15 +107,33 @@ fn main() -> Result<(), Box<dyn Error>> {
         thread::sleep(Duration::from_millis(1));
     }
 
-    // Cleanup
-    drop(render_tx);
-    render_handle.join().unwrap();
-    audio.wait();
-    stdout.execute(Show)?;
-    stdout.execute(LeaveAlternateScreen)?;
-    terminal::disable_raw_mode()?;
+        // Cleanup
+        drop(render_tx);
+        render_handle.join().unwrap();
+        audio.wait();
 
-    println!("\nGame Over!\nEnemies destroyed: {}\nTotal score: {}", destroyed_count, destroyed_count);
+        println!("\nGame Over!\nEnemies destroyed: {}\nTotal score: {}", destroyed_count, destroyed_count);
+        println!("Press R to restart or Q to quit...");
 
-    Ok(())
+        // Wait for user input to restart or quit
+        loop {
+            if event::poll(Duration::from_millis(100))? {
+                if let Event::Key(key_event) = event::read()? {
+                    match key_event.code {
+                        KeyCode::Char('r') | KeyCode::Char('R') => {
+                            break; // restart outer loop
+                        }
+                        KeyCode::Char('q') | KeyCode::Esc | KeyCode::Char('Q') => {
+                            // Clean up terminal and exit
+                            stdout.execute(Show)?;
+                            stdout.execute(LeaveAlternateScreen)?;
+                            terminal::disable_raw_mode()?;
+                            return Ok(());
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
 }
