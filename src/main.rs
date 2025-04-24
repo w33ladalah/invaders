@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     stdout.execute(Hide)?;
 
     let mut high_score = 0;
-    'outer: loop {
+    loop {
         let mut audio = init_sounds();
 
         // Create a child thread for rendering.
@@ -139,7 +139,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 if let Event::Key(key_event) = event::read()? {
                     match key_event.code {
                         KeyCode::Char('r') | KeyCode::Char('R') => {
-                            break; // restart outer loop
+                            break; // restart loop
                         }
                         KeyCode::Char('q') | KeyCode::Esc | KeyCode::Char('Q') => {
                             // Clean up terminal and exit
