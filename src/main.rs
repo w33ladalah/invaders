@@ -10,6 +10,7 @@ use invaders::{frame, render};
 use invaders::frame::{Drawable, new_frame};
 use invaders::player::Player;
 use invaders::sound::init_sounds;
+use invaders::enemies::Enemies;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut audio = init_sounds();
@@ -42,6 +43,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     stdout.execute(Hide)?;
 
     let mut player = Player::new();
+    let mut enemies = Enemies::new();
     let mut instant = Instant::now();
 
     // Main loop
@@ -78,13 +80,27 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
 
         player.update(d);
-
+        enemies.update(d);
+        // Check for collisions
+        if enemies.hit_by(&mut player.shots) {
+            audio.play("explode");
+        }
+        // Draw everything
         player.draw(&mut current_frame);
-
+        enemies.draw(&mut current_frame);
+        // Win condition
+        if enemies.all_dead() {
+            audio.play("win");
+            break 'mainloop;
+        }
+        // Lose condition
+        if enemies.reached_bottom() {
+            audio.play("lose");
+            break 'mainloop;
+        }
         // Don't do anything if an error occurred
         let _ = render_tx.send(current_frame);
-
-        // Delay the loop to prevent to much frame per second
+        // Delay the loop to prevent too much frame per second
         thread::sleep(Duration::from_millis(1));
     }
 

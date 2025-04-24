@@ -6,7 +6,7 @@ use crate::laser::Laser;
 pub struct Player {
     x: usize,
     y: usize,
-    shots: Vec<Laser>,
+    pub shots: Vec<Laser>,
 }
 
 impl Player {
