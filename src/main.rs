@@ -25,7 +25,7 @@ fn main() -> Result<()> {
 
     // Create app state
     let mut app = App::new();
-    
+
     // Initialize audio
     let mut audio = init_sounds();
     audio.play("startup");
@@ -92,14 +92,14 @@ fn main() -> Result<()> {
         if last_tick.elapsed() >= tick_rate {
             app.tick();
             last_tick = Instant::now();
-            
+
             // Play sounds based on state changes
             match app.state {
                 GameState::GameOver => audio.play("lose"),
                 GameState::Win => audio.play("win"),
                 _ => {}
             }
-            
+
             // Play explosion sound if enemies were destroyed
             let destroyed = app.enemies.hit_by(&mut app.player.shots);
             if destroyed > 0 {
