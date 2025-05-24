@@ -1,157 +1,118 @@
-use std::error::Error;
-use std::{io, thread};
-use std::sync::mpsc;
+mod app;
+
+use std::io;
 use std::time::{Duration, Instant};
-use crossterm::{event, ExecutableCommand, terminal};
-use crossterm::cursor::{Hide, Show};
-use crossterm::event::{Event, KeyCode};
-use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
-use invaders::{frame, render};
-use invaders::frame::{Drawable, new_frame};
-use invaders::player::Player;
+use anyhow::Result;
+use crossterm::event::{self, Event, KeyCode};
+use crossterm::terminal::{self, EnterAlternateScreen, LeaveAlternateScreen};
+use crossterm::{cursor, ExecutableCommand};
+use ratatui::backend::CrosstermBackend;
+use ratatui::Terminal;
+
+use app::{App, GameState};
 use invaders::sound::init_sounds;
-use invaders::enemies::Enemies;
 
-fn main() -> Result<(), Box<dyn Error>> {
-    // Setup screen
-    let mut stdout = io::stdout();
+fn main() -> Result<()> {
+    // Setup terminal
     terminal::enable_raw_mode()?;
+    let mut stdout = io::stdout();
     stdout.execute(EnterAlternateScreen)?;
-    stdout.execute(Hide)?;
+    stdout.execute(cursor::Hide)?;
 
-    let mut high_score = 0;
+    // Create terminal with crossterm backend
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
+
+    // Create app state
+    let mut app = App::new();
+    
+    // Initialize audio
+    let mut audio = init_sounds();
+    audio.play("startup");
+
+    // Main loop
+    let tick_rate = Duration::from_millis(16); // ~60 FPS
+    let mut last_tick = Instant::now();
+
     loop {
-        let mut audio = init_sounds();
+        // Draw UI
+        terminal.draw(|frame| app.render(frame))?;
 
-        // Create a child thread for rendering.
-        let (render_tx, render_rx) = mpsc::channel();
-        let render_handle = thread::spawn(move || {
-            let mut last_frame = frame::new_frame();
-            let mut stdout = io::stdout();
+        // Handle input
+        let timeout = tick_rate
+            .checked_sub(last_tick.elapsed())
+            .unwrap_or_else(|| Duration::from_secs(0));
 
-            render::render(&mut stdout, &last_frame, &last_frame, true);
-
-            loop {
-                let current_frame = match render_rx.recv() {
-                    Ok(x ) => x,
-                    Err(_) => break,
-                };
-
-                render::render(&mut stdout, &last_frame, &current_frame, false);
-
-                last_frame = current_frame;
-            }
-        });
-
-        let mut player: Player = Player::new();
-        let mut enemies: Enemies = Enemies::new();
-        let mut destroyed_count: usize = 0;
-        let mut instant = Instant::now();
-
-        // Main loop
-        'mainloop: loop {
-        let d = instant.elapsed();
-        instant = Instant::now();
-        let mut current_frame = new_frame();
-
-        while event::poll(Duration::default())? {
-            if let Event::Key(key_event) = event::read()? {
-                match key_event.code {
-                    KeyCode::Left =>  {
-                        if player.go_to_left() {
-                            audio.play("move");
-                        }
+        if crossterm::event::poll(timeout)? {
+            if let Event::Key(key) = event::read()? {
+                match app.state {
+                    GameState::Playing => match key.code {
+                        KeyCode::Left => {
+                            if app.player.go_to_left() {
+                                audio.play("move");
+                            }
+                        },
+                        KeyCode::Right => {
+                            if app.player.go_to_right() {
+                                audio.play("move");
+                            }
+                        },
+                        KeyCode::Char(' ') | KeyCode::Enter => {
+                            if app.player.shoot() {
+                                audio.play("pew");
+                            }
+                        },
+                        KeyCode::Char('q') | KeyCode::Esc => {
+                            app.should_quit = true;
+                            audio.play("lose");
+                        },
+                        _ => {},
                     },
-                    KeyCode::Right => {
-                        if player.go_to_right() {
-                            audio.play("move");
-                        }
-                    },
-                    KeyCode::Char(' ') | KeyCode::Enter => {
-                        if player.shoot() {
-                            audio.play("pew");
-                        }
-                    }
-                    KeyCode::Esc | KeyCode::Char('q') => {
-                        audio.play("lose");
-                        break 'mainloop;
-                    }
-                    _ => {}
-                }
-            }
-        }
-
-        player.update(d);
-        enemies.update(d);
-        // Check for collisions
-        let destroyed = enemies.hit_by(&mut player.shots);
-        if destroyed > 0 {
-            destroyed_count += destroyed;
-            audio.play("explode");
-        }
-        // Draw everything
-        player.draw(&mut current_frame);
-        enemies.draw(&mut current_frame);
-        // Win condition
-        if enemies.all_dead() {
-            audio.play("win");
-            break 'mainloop;
-        }
-        // Lose condition
-        if enemies.reached_bottom() {
-            audio.play("lose");
-            break 'mainloop;
-        }
-        // Don't do anything if an error occurred
-        let _ = render_tx.send(current_frame);
-        // Delay the loop to prevent too much frame per second
-        thread::sleep(Duration::from_millis(1));
-    }
-
-        // Cleanup
-        drop(render_tx);
-        render_handle.join().unwrap();
-        audio.wait();
-
-        if destroyed_count > high_score {
-            high_score = destroyed_count;
-        }
-
-        // Clear the screen and move cursor to top-left for a clean end screen
-        use crossterm::terminal::{Clear, ClearType};
-        use crossterm::cursor::MoveTo;
-        stdout.execute(Clear(ClearType::All))?;
-        stdout.execute(MoveTo(0, 0))?;
-
-        println!("============================");
-        println!("        Game Over!");
-        println!("----------------------------");
-        println!("Enemies destroyed: {}", destroyed_count);
-        println!("Total score:      {}", destroyed_count);
-        println!("----------------------------");
-        println!("High score:       {}", high_score);
-        println!("============================");
-        println!("Press [R] to restart or [Q] to quit...");
-
-        // Wait for user input to restart or quit
-        loop {
-            if event::poll(Duration::from_millis(100))? {
-                if let Event::Key(key_event) = event::read()? {
-                    match key_event.code {
+                    GameState::GameOver | GameState::Win => match key.code {
                         KeyCode::Char('r') | KeyCode::Char('R') => {
-                            break; // restart loop
-                        }
+                            app.restart();
+                            audio = init_sounds();
+                            audio.play("startup");
+                        },
                         KeyCode::Char('q') | KeyCode::Esc | KeyCode::Char('Q') => {
-                            // Clean up terminal and exit
-                            stdout.execute(Show)?;
-                            stdout.execute(LeaveAlternateScreen)?;
-                            terminal::disable_raw_mode()?;
-                            return Ok(());
-                        }
-                        _ => {}
-                    }
+                            app.should_quit = true;
+                        },
+                        _ => {},
+                    },
                 }
             }
         }
+
+        // Check if we should quit
+        if app.should_quit {
+            break;
+        }
+
+        // Tick
+        if last_tick.elapsed() >= tick_rate {
+            app.tick();
+            last_tick = Instant::now();
+            
+            // Play sounds based on state changes
+            match app.state {
+                GameState::GameOver => audio.play("lose"),
+                GameState::Win => audio.play("win"),
+                _ => {}
+            }
+            
+            // Play explosion sound if enemies were destroyed
+            let destroyed = app.enemies.hit_by(&mut app.player.shots);
+            if destroyed > 0 {
+                audio.play("explode");
+            }
+        }
     }
+
+    // Restore terminal
+    terminal::disable_raw_mode()?;
+    stdout = io::stdout();
+    stdout.execute(LeaveAlternateScreen)?;
+    stdout.execute(cursor::Show)?;
+
+    Ok(())
 }

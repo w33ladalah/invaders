@@ -1,4 +1,5 @@
 use rusty_time::timer::Timer;
+use std::time::Duration;
 
 pub struct Enemy {
     pub x: usize,
@@ -28,7 +29,7 @@ impl Enemies {
         }
     }
 
-    pub fn update(&mut self, d: std::time::Duration) {
+    pub fn update(&mut self, d: Duration) {
         self.move_timer.update(d);
         if self.move_timer.ready {
             let mut change_direction = false;
@@ -61,16 +62,6 @@ impl Enemies {
         }
     }
 
-    pub fn draw(&self, frame: &mut crate::frame::Frame) {
-        for enemy in self.army.iter() {
-            if enemy.alive {
-                if enemy.x < crate::NUM_COLS && enemy.y < crate::NUM_ROWS {
-                    frame[enemy.x][enemy.y] = "V";
-                }
-            }
-        }
-    }
-
     pub fn all_dead(&self) -> bool {
         self.army.iter().all(|e| !e.alive)
     }
@@ -93,11 +84,5 @@ impl Enemies {
             }
         }
         destroyed
-    }
-}
-
-impl crate::frame::Drawable for Enemies {
-    fn draw(&self, frame: &mut crate::frame::Frame) {
-        self.draw(frame);
     }
 }

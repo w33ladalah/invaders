@@ -1,6 +1,5 @@
 use std::time::Duration;
 use rusty_time::timer::Timer;
-use crate::frame::{Drawable, Frame};
 
 pub struct Laser {
     pub x: usize,
@@ -18,6 +17,7 @@ impl Laser {
             timer: Timer::from_millis(60),
         }
     }
+    
     pub fn update(&mut self, d: Duration) {
         self.timer.update(d);
 
@@ -28,17 +28,13 @@ impl Laser {
             self.timer.reset();
         }
     }
+    
     pub fn explode(&mut self) {
         self.exploded = true;
         self.timer = Timer::from_millis(300);
     }
+    
     pub fn destroyed(&self) -> bool {
         (self.exploded && self.timer.ready) || (self.y == 0)
-    }
-}
-
-impl Drawable for Laser {
-    fn draw(&self, frame: &mut Frame) {
-        frame[self.x][self.y] = if self.exploded { "*" } else { "|" }
     }
 }
